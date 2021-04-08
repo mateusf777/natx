@@ -14,20 +14,15 @@ const (
 )
 
 func TestNormalUsage(t *testing.T) {
-
 	// Configuration
-	natsTest, err := NewNatsConnection()
-	if err != nil {
-		t.Error(err)
-	}
+	natsTest := NewNatsConnection()
 	defer natsTest.Terminate()
 	nc := natsTest.NatsConn
-
 	expected := 10
 	received := 0
 
 	// When subscribing to a subject
-	if _, err = nc.Subscribe(Subject, func(m *nats.Msg) {
+	if _, err := nc.Subscribe(Subject, func(m *nats.Msg) {
 		received++
 		_ = m.Ack()
 	}); err != nil {
@@ -61,13 +56,9 @@ func TestNormalUsage(t *testing.T) {
 
 func TestUnsubscribeResubscribe(t *testing.T) {
 	// Configuration
-	natsTest, err := NewNatsConnection()
-	if err != nil {
-		t.Error(err)
-	}
+	natsTest := NewNatsConnection()
 	defer natsTest.Terminate()
 	nc := natsTest.NatsConn
-
 	sent := 0
 	received := 0
 
@@ -76,7 +67,7 @@ func TestUnsubscribeResubscribe(t *testing.T) {
 		received++
 	})
 	if err != nil {
-		t.Error()
+		t.Error(err)
 	}
 
 	// Unsubscribe
@@ -97,7 +88,7 @@ func TestUnsubscribeResubscribe(t *testing.T) {
 				received++
 			})
 			if err != nil {
-				t.Error()
+				t.Error(err)
 			}
 			resGroup.Done()
 		}

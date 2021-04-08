@@ -18,7 +18,7 @@ func (c *NatsConnection) Terminate() {
 	_ = c.NatsC.Terminate(context.Background())
 }
 
-func NewNatsConnection() (*NatsConnection, error) {
+func NewNatsConnection() *NatsConnection {
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
 		Image:        "nats",
@@ -30,26 +30,26 @@ func NewNatsConnection() (*NatsConnection, error) {
 		Started:          true,
 	})
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	//defer natsC.Terminate(ctx)
 
 	ip, err := natsC.Host(ctx)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	port, err := natsC.MappedPort(ctx, "4222")
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	nc, err := nats.Connect(fmt.Sprintf("nats://%s:%s", ip, port.Port()))
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	return &NatsConnection{
 		NatsC:    natsC,
 		NatsConn: nc,
-	}, nil
+	}
 }
