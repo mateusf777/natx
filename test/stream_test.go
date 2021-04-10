@@ -10,64 +10,43 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-const (
-	Subject = "test"
-	Message = "test"
-)
-
-func TestNormalUsage(t *testing.T) {
+func TestStreamUnsubscribeResubscribe(t *testing.T) {
 	// Configuration
 	natsTest := NewNatsConnection()
 	defer natsTest.Terminate()
 	nc := natsTest.NatsConn
-	expected := 10
-	received := 0
 
-	// When subscribing to a subject
-	if _, err := nc.Subscribe(Subject, func(m *nats.Msg) {
-		log.Printf("Received: %s", m.Data)
-		received++
-	}); err != nil {
-		t.Error()
-	}
+	// Get jetStream
+	js, _ := nc.JetStream()
+	// Add stream
+	_, _ = js.AddStream(&nats.StreamConfig{
+		Name:     "TEST",
+		Subjects: []string{"TEST.*"},
+		// Discards all acknowledge messages
+		Retention: nats.WorkQueuePolicy,
+	})
+	// Add consumer
+	_, _ = js.AddConsumer("TEST", &nats.ConsumerConfig{
+		Durable: "CONS_TEST",
+		// Acknowledge all messages received by subscribers
+		AckPolicy: nats.AckAllPolicy,
+	})
 
-	// And Published 10 messages
-	for i := 0; i < expected; i++ {
-		if err := nc.Publish(Subject, []byte(fmt.Sprintf("Message %d\n", i+1))); err != nil {
-			t.Error(err)
-		}
-	}
-
-	_ = nc.Drain()
-	for nc.IsDraining() {
-	}
-
-	// It should receive 10 messages
-	if received != expected {
-		t.Errorf("waiting %d, got %d", expected, received)
-	}
-}
-
-func TestUnsubscribeResubscribe(t *testing.T) {
-	// Configuration
-	natsTest := NewNatsConnection()
-	defer natsTest.Terminate()
-	nc := natsTest.NatsConn
 	sent := 0
 	received1 := 0
 	received2 := 0
 
 	// When subscribing to a subject
 	log.Println()
-	subs, err := nc.Subscribe(Subject, func(m *nats.Msg) {
+	subs, err := js.Subscribe("TEST.*", func(m *nats.Msg) {
 		log.Printf("Received_1: %s", m.Data)
 		received1++
-	})
+	}, nats.Durable("CONS_TEST"))
 	if err != nil {
 		t.Error(err)
 	}
 
-	// Simulate subscriber failure at 300ms
+	// Simulate failure at 300ms
 	go func() {
 		timer := time.NewTimer(300 * time.Millisecond)
 		for range timer.C {
@@ -76,17 +55,17 @@ func TestUnsubscribeResubscribe(t *testing.T) {
 		}
 	}()
 
-	// Simulate subscriber recovery at 800ms
+	// Simulate recovery at 800ms
 	resGroup := sync.WaitGroup{}
 	resGroup.Add(1)
 	go func() {
 		timer := time.NewTimer(800 * time.Millisecond)
 		for range timer.C {
 			log.Println()
-			_, err := nc.Subscribe(Subject, func(m *nats.Msg) {
+			_, err := js.Subscribe("TEST.*", func(m *nats.Msg) {
 				log.Printf("Received_2: %s", m.Data)
 				received2++
-			})
+			}, nats.Durable("CONS_TEST"))
 			if err != nil {
 				t.Error(err)
 			}
@@ -102,7 +81,7 @@ func TestUnsubscribeResubscribe(t *testing.T) {
 		ticker := time.NewTicker(50 * time.Millisecond)
 		for range ticker.C {
 			sent++
-			if err := nc.Publish(Subject, []byte(fmt.Sprintf("Message %d\n", sent))); err != nil {
+			if _, err := js.Publish("TEST.message", []byte(fmt.Sprintf("Message %d\n", sent))); err != nil {
 				t.Error(err)
 			}
 			// only send 20 messages
@@ -121,15 +100,9 @@ func TestUnsubscribeResubscribe(t *testing.T) {
 	for nc.IsDraining() {
 	}
 
-	// Make sure we receive all published messages
-	_ = nc.Drain()
-	for nc.IsDraining() {
-	}
-
 	received := received1 + received2
-	// It receive less than 10 messages because there was no subscriber for ~200ms
-	if received >= sent {
-		t.Errorf("waiting lens than %d, got %d", sent, received)
+	if received != sent {
+		t.Errorf("waiting %d, got %d", sent, received)
 	}
 	log.Printf("Sent: %d, Received_1: %d, Received_2: %d\n", sent, received1, received2)
 }
