@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -12,9 +13,13 @@ import (
 
 func TestStreamUnsubscribeResubscribe(t *testing.T) {
 	// Configuration
-	natsTest := NewNatsConnection()
-	defer natsTest.Terminate()
-	nc := natsTest.NatsConn
+	//natsTest := NewNatsConnection()
+	//defer natsTest.Terminate()
+	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	// Get jetStream
 	js, _ := nc.JetStream()
@@ -26,50 +31,61 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 		Retention: nats.WorkQueuePolicy,
 	})
 	// Add consumer
-	_, _ = js.AddConsumer("TEST", &nats.ConsumerConfig{
+	cons, err := js.AddConsumer("TEST", &nats.ConsumerConfig{
 		Durable: "CONS_TEST",
 		// Acknowledge all messages received by subscribers
-		AckPolicy: nats.AckAllPolicy,
+		AckPolicy: nats.AckExplicitPolicy,
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	sent := 0
 	received1 := 0
 	received2 := 0
 
-	// When subscribing to a subject
-	log.Println()
-	subs, err := js.Subscribe("TEST.*", func(m *nats.Msg) {
-		log.Printf("Received_1: %s", m.Data)
-		received1++
-	}, nats.Durable("CONS_TEST"))
-	if err != nil {
-		t.Error(err)
-	}
-
-	// Simulate failure at 300ms
 	go func() {
-		timer := time.NewTimer(300 * time.Millisecond)
-		for range timer.C {
-			_ = subs.Drain()
-			_ = subs.Unsubscribe()
+		log.Println()
+		sub, err := js.PullSubscribe("TEST.message", cons.Config.Durable)
+		if err != nil {
+			panic(err)
 		}
+
+		for received1 < 5 {
+			msgs, err := sub.Fetch(1)
+			if err != nil {
+				log.Println("closing sub: ", err)
+				break
+			}
+			log.Printf("Received_1: %s", msgs[0].Data)
+			_ = msgs[0].AckSync()
+			received1++
+		}
+		fmt.Println("first finished")
 	}()
 
-	// Simulate recovery at 800ms
-	resGroup := sync.WaitGroup{}
-	resGroup.Add(1)
+	subGroup := sync.WaitGroup{}
+	subGroup.Add(1)
 	go func() {
 		timer := time.NewTimer(800 * time.Millisecond)
 		for range timer.C {
-			log.Println()
-			_, err := js.Subscribe("TEST.*", func(m *nats.Msg) {
-				log.Printf("Received_2: %s", m.Data)
+			for received1+received2 < 20 {
+				sub, err := js.PullSubscribe("TEST.message", cons.Config.Durable)
+				if err != nil {
+					log.Println("pull sub: ", err)
+					continue
+				}
+				msgs, err := sub.Fetch(1)
+				if err != nil {
+					log.Println("sub fetch: ", err)
+					continue
+				}
+				log.Printf("Received_2: %s", msgs[0].Data)
+				_ = msgs[0].AckSync()
 				received2++
-			}, nats.Durable("CONS_TEST"))
-			if err != nil {
-				t.Error(err)
 			}
-			resGroup.Done()
+			fmt.Println("second finished")
+			subGroup.Done()
 		}
 	}()
 
@@ -78,7 +94,7 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 	// Publish messages concurrently with everything else
 	go func() {
 		defer pubGroup.Done()
-		ticker := time.NewTicker(50 * time.Millisecond)
+		ticker := time.NewTicker(10 * time.Millisecond)
 		for range ticker.C {
 			sent++
 			if _, err := js.Publish("TEST.message", []byte(fmt.Sprintf("Message %d\n", sent))); err != nil {
@@ -91,15 +107,10 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 		}
 	}()
 
-	// Wait for the recovery
-	resGroup.Wait()
 	// Wait for all messages to be published
 	pubGroup.Wait()
 	// Make sure we receive all published messages
-	_ = nc.Drain()
-	for nc.IsDraining() {
-	}
-
+	subGroup.Wait()
 	received := received1 + received2
 	if received != sent {
 		t.Errorf("waiting %d, got %d", sent, received)

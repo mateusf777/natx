@@ -1,8 +1,10 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -12,14 +14,18 @@ import (
 
 const (
 	Subject = "test"
-	Message = "test"
 )
 
 func TestNormalUsage(t *testing.T) {
 	// Configuration
-	natsTest := NewNatsConnection()
-	defer natsTest.Terminate()
-	nc := natsTest.NatsConn
+	//natsTest := NewNatsConnection()
+	//defer natsTest.Terminate()
+	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	expected := 10
 	received := 0
 
@@ -48,11 +54,59 @@ func TestNormalUsage(t *testing.T) {
 	}
 }
 
+func TestRequestReply(t *testing.T) {
+	// Configuration
+	//natsTest := NewNatsConnection()
+	//defer natsTest.Terminate()
+	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := 10
+	received := 0
+
+	// When subscribing to a subject
+	if _, err := nc.Subscribe(Subject, func(m *nats.Msg) {
+		log.Printf("Received Request: %s", m.Data)
+		resp := len(m.Data)
+		_ = m.Respond([]byte(fmt.Sprintf("%d", resp)))
+		received++
+	}); err != nil {
+		t.Error()
+	}
+
+	// And Published 10 messages
+	for i := 0; i < expected; i++ {
+		resp, err := nc.RequestWithContext(context.Background(), Subject, []byte(fmt.Sprintf("Message %d\n", i+1)))
+		if err != nil {
+			t.Error(err)
+		}
+		t.Log(string(resp.Data))
+	}
+
+	_ = nc.Drain()
+	for nc.IsDraining() {
+	}
+
+	// It should receive 10 messages
+	if received != expected {
+		t.Errorf("waiting %d, got %d", expected, received)
+	}
+}
+
 func TestUnsubscribeResubscribe(t *testing.T) {
 	// Configuration
-	natsTest := NewNatsConnection()
-	defer natsTest.Terminate()
-	nc := natsTest.NatsConn
+	//natsTest := NewNatsConnection()
+	//defer natsTest.Terminate()
+	//nc := natsTest.NatsConn
+	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sent := 0
 	received1 := 0
 	received2 := 0
