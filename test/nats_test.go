@@ -31,6 +31,7 @@ func TestNormalUsage(t *testing.T) {
 
 	// When subscribing to a subject
 	if _, err := nc.Subscribe(Subject, func(m *nats.Msg) {
+
 		log.Printf("Received: %s", m.Data)
 		received++
 	}); err != nil {
