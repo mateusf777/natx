@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/mateusf7777/natx/common"
+
 	"github.com/nats-io/nats.go"
 )
 

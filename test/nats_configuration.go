@@ -21,7 +21,7 @@ func (c *NatsConnection) Terminate() {
 func NewNatsConnection() *NatsConnection {
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
-		Image:        "nats:2.2",
+		Image:        "nats:2.9.8",
 		Cmd:          []string{"-js"},
 		ExposedPorts: []string{"4222/tcp"},
 		WaitingFor:   wait.ForLog("Listening for client connections on 0.0.0.0:4222"),

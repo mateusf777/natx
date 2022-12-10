@@ -6,18 +6,20 @@ import (
 	"log"
 	"os"
 
+	"github.com/google/uuid"
+
 	"github.com/mateusf7777/natx/common"
 
 	"github.com/nats-io/nats.go"
 )
 
 var store map[string]string
-var instance string
+var instance uuid.UUID
 
 func main() {
-	instance = os.Args[1]
+	instance, _ = uuid.NewUUID()
 
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
 		panic(err)
 	}

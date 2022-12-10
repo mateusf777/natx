@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -18,20 +17,15 @@ const (
 
 func TestNormalUsage(t *testing.T) {
 	// Configuration
-	//natsTest := NewNatsConnection()
-	//defer natsTest.Terminate()
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	natsTest := NewNatsConnection()
+	defer natsTest.Terminate()
+	nc := natsTest.NatsConn
 
 	expected := 10
 	received := 0
 
 	// When subscribing to a subject
 	if _, err := nc.Subscribe(Subject, func(m *nats.Msg) {
-
 		log.Printf("Received: %s", m.Data)
 		received++
 	}); err != nil {
@@ -57,13 +51,9 @@ func TestNormalUsage(t *testing.T) {
 
 func TestRequestReply(t *testing.T) {
 	// Configuration
-	//natsTest := NewNatsConnection()
-	//defer natsTest.Terminate()
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	natsTest := NewNatsConnection()
+	defer natsTest.Terminate()
+	nc := natsTest.NatsConn
 
 	expected := 10
 	received := 0
@@ -99,14 +89,9 @@ func TestRequestReply(t *testing.T) {
 
 func TestUnsubscribeResubscribe(t *testing.T) {
 	// Configuration
-	//natsTest := NewNatsConnection()
-	//defer natsTest.Terminate()
-	//nc := natsTest.NatsConn
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	natsTest := NewNatsConnection()
+	defer natsTest.Terminate()
+	nc := natsTest.NatsConn
 
 	sent := 0
 	received1 := 0
@@ -182,7 +167,7 @@ func TestUnsubscribeResubscribe(t *testing.T) {
 	}
 
 	received := received1 + received2
-	// It receive less than 10 messages because there was no subscriber for ~200ms
+	// It receives less than 10 messages because there was no subscriber for ~200ms
 	if received >= sent {
 		t.Errorf("waiting lens than %d, got %d", sent, received)
 	}
