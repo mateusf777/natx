@@ -1,22 +1,21 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 )
 
-var instance string
-
 func main() {
-	instance = os.Args[1]
+	instance, _ := uuid.NewUUID()
+	log.Println("Instance:", instance)
 
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
 
 	js, _ := nc.JetStream()
@@ -35,31 +34,23 @@ func main() {
 		AckPolicy: nats.AckExplicitPolicy,
 	})
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
-
-	//_, err = js.Subscribe("TEST.message", func(msg *nats.Msg) {
-	//	fmt.Println(string(msg.Data), " instance: ", instance)
-	//	_ = msg.Ack()
-	//}, nats.Durable("CONS_TEST"))
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	sub, err := js.PullSubscribe("TEST.message", "CONS_TEST")
 	if err != nil {
-		log.Println("pull sub: ", err)
+		log.Fatalf("error: %v", err)
 	}
 
 	timer := time.NewTicker(time.Second)
 	for range timer.C {
 		for {
-			msgs, err := sub.Fetch(1, nats.Context(context.Background()))
+			messages, err := sub.Fetch(1)
 			if err != nil {
 				log.Println("sub fetch: ", err)
 				break
 			}
-			for _, msg := range msgs {
+			for _, msg := range messages {
 				log.Printf("Received: %s, instance: %s", msg.Data, instance)
 				_ = msg.Ack()
 			}

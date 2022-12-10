@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -17,13 +16,9 @@ const (
 )
 
 func TestNormalUsage(t *testing.T) {
-	// Configuration
-	//natsTest := NewNatsConnection()
-	//defer natsTest.Terminate()
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
 	}
 
 	expected := 10
@@ -31,7 +26,6 @@ func TestNormalUsage(t *testing.T) {
 
 	// When subscribing to a subject
 	if _, err := nc.Subscribe(Subject, func(m *nats.Msg) {
-
 		log.Printf("Received: %s", m.Data)
 		received++
 	}); err != nil {
@@ -56,15 +50,10 @@ func TestNormalUsage(t *testing.T) {
 }
 
 func TestRequestReply(t *testing.T) {
-	// Configuration
-	//natsTest := NewNatsConnection()
-	//defer natsTest.Terminate()
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
 	}
-
 	expected := 10
 	received := 0
 
@@ -98,14 +87,9 @@ func TestRequestReply(t *testing.T) {
 }
 
 func TestUnsubscribeResubscribe(t *testing.T) {
-	// Configuration
-	//natsTest := NewNatsConnection()
-	//defer natsTest.Terminate()
-	//nc := natsTest.NatsConn
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
 	}
 
 	sent := 0
@@ -182,7 +166,7 @@ func TestUnsubscribeResubscribe(t *testing.T) {
 	}
 
 	received := received1 + received2
-	// It receive less than 10 messages because there was no subscriber for ~200ms
+	// It receives less than 10 messages because there was no subscriber for ~200ms
 	if received >= sent {
 		t.Errorf("waiting lens than %d, got %d", sent, received)
 	}

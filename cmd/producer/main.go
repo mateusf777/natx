@@ -3,16 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/nats-io/nats.go"
 )
 
 func main() {
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
 
 	js, _ := nc.JetStream()
