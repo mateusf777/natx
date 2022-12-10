@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"time"
@@ -16,7 +15,7 @@ func main() {
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
 
 	js, _ := nc.JetStream()
@@ -35,18 +34,18 @@ func main() {
 		AckPolicy: nats.AckExplicitPolicy,
 	})
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
 
 	sub, err := js.PullSubscribe("TEST.message", "CONS_TEST")
 	if err != nil {
-		log.Println("pull sub: ", err)
+		log.Fatalf("error: %v", err)
 	}
 
 	timer := time.NewTicker(time.Second)
 	for range timer.C {
 		for {
-			messages, err := sub.Fetch(1, nats.Context(context.Background()))
+			messages, err := sub.Fetch(1)
 			if err != nil {
 				log.Println("sub fetch: ", err)
 				break

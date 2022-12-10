@@ -16,10 +16,10 @@ const (
 )
 
 func TestNormalUsage(t *testing.T) {
-	// Configuration
-	natsTest := NewNatsConnection()
-	defer natsTest.Terminate()
-	nc := natsTest.NatsConn
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
+	}
 
 	expected := 10
 	received := 0
@@ -50,11 +50,10 @@ func TestNormalUsage(t *testing.T) {
 }
 
 func TestRequestReply(t *testing.T) {
-	// Configuration
-	natsTest := NewNatsConnection()
-	defer natsTest.Terminate()
-	nc := natsTest.NatsConn
-
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
+	}
 	expected := 10
 	received := 0
 
@@ -88,10 +87,10 @@ func TestRequestReply(t *testing.T) {
 }
 
 func TestUnsubscribeResubscribe(t *testing.T) {
-	// Configuration
-	natsTest := NewNatsConnection()
-	defer natsTest.Terminate()
-	nc := natsTest.NatsConn
+	nc, err := nats.Connect(nats.DefaultURL)
+	if err != nil {
+		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
+	}
 
 	sent := 0
 	received1 := 0

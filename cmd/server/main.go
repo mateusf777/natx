@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/mateusf7777/natx/common"
-
 	"github.com/nats-io/nats.go"
+
+	"github.com/mateusf7777/natx/common"
 )
 
 var store map[string]string
@@ -21,17 +21,17 @@ func main() {
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
 
 	store = make(map[string]string)
 
 	if _, err := nc.QueueSubscribe("service.store.add", "service", Add); err != nil {
-		log.Printf("Could not subscribe, %v", err)
+		log.Fatalf("error: %v", err)
 	}
 
 	if _, err := nc.QueueSubscribe("service.store.get", "service", Get); err != nil {
-		log.Printf("Could not subscribe, %v", err)
+		log.Fatalf("error: %v", err)
 	}
 
 	sig := make(chan os.Signal, 1)

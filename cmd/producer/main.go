@@ -11,7 +11,7 @@ import (
 func main() {
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
 
 	js, _ := nc.JetStream()

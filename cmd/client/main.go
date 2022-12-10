@@ -7,9 +7,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/mateusf7777/natx/common"
-
 	"github.com/nats-io/nats.go"
+
+	"github.com/mateusf7777/natx/common"
 )
 
 const (
@@ -30,9 +30,9 @@ func main() {
 		panic("get usage: get <key>")
 	}
 
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		panic(err)
+		log.Fatalf("error: %v", err)
 	}
 
 	switch os.Args[1] {
@@ -44,12 +44,12 @@ func main() {
 		req, _ := json.Marshal(addReq)
 		msg, err := nc.RequestWithContext(context.Background(), "service.store.add", req)
 		if err != nil {
-			panic(err)
+			log.Fatalf("error: %v", err)
 		}
 		var resp common.AddStoreResponse
 		_ = json.Unmarshal(msg.Data, &resp)
 		if resp.Err != nil {
-			panic(resp.Err)
+			log.Fatalf("error: %v", err)
 		}
 		fmt.Println("OK!")
 
@@ -60,15 +60,14 @@ func main() {
 		req, _ := json.Marshal(addReq)
 		msg, err := nc.RequestWithContext(context.Background(), "service.store.get", req)
 		if err != nil {
-			panic(err)
+			log.Fatalf("error: %v", err)
 		}
 		log.Println("Get raw payload: ", string(msg.Data))
 		var resp common.GetStoreResponse
 		_ = json.Unmarshal(msg.Data, &resp)
 		log.Printf("Get response payload: %+v\n", resp)
 		if resp.Err != nil {
-			_, _ = fmt.Fprint(os.Stderr, *resp.Err)
-			os.Exit(1)
+			log.Fatalf("error: %v", resp.Err)
 		}
 		fmt.Println(resp.Value)
 	}

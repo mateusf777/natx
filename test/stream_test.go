@@ -3,7 +3,6 @@ package test
 import (
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -12,13 +11,9 @@ import (
 )
 
 func TestStreamUnsubscribeResubscribe(t *testing.T) {
-	// Configuration
-	//natsTest := NewNatsConnection()
-	//defer natsTest.Terminate()
-	nc, err := nats.Connect(nats.DefaultURL, nats.UserInfo(os.Getenv("NATS_USER"), os.Getenv("NATS_PASSWORD")))
+	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
 	}
 
 	// Get jetStream
