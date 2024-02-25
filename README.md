@@ -10,8 +10,10 @@ Build: (you might need to adjust the folder creation)
 
 ```
 mkdir build
-go build ./cmd/client                 
-go build ./cmd/consumer
-go build ./cmd/producer
-go build ./cmd/server
+cd build
+go build ../cmd/client                 
+go build ../cmd/consumer
+go build ../cmd/producer
+go build ../cmd/server
+go build ../cmd/query
 ```
