@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func TestStreamUnsubscribeResubscribe(t *testing.T) {
@@ -17,19 +19,20 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 	}
 
 	// Get jetStream
-	js, _ := nc.JetStream()
+	js, _ := jetstream.New(nc)
 	// Add stream
-	_, _ = js.AddStream(&nats.StreamConfig{
+	_, _ = js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
 		Name:     "TEST",
 		Subjects: []string{"TEST.*"},
 		// Discards all acknowledge messages
-		Retention: nats.WorkQueuePolicy,
+		Retention: jetstream.WorkQueuePolicy,
 	})
 	// Add consumer
-	cons, err := js.AddConsumer("TEST", &nats.ConsumerConfig{
-		Durable: "CONS_TEST",
+	cons, err := js.CreateOrUpdateConsumer(context.Background(), "TEST", jetstream.ConsumerConfig{
+		Durable:       "CONS_TEST",
+		FilterSubject: "TEST.message",
 		// Acknowledge all messages received by subscribers
-		AckPolicy: nats.AckExplicitPolicy,
+		AckPolicy: jetstream.AckAllPolicy,
 	})
 	if err != nil {
 		panic(err)
@@ -41,21 +44,14 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 
 	go func() {
 		log.Println()
-		sub, err := js.PullSubscribe("TEST.message", cons.Config.Durable)
-		if err != nil {
-			panic(err)
-		}
 
 		for received1 < 5 {
-			msgs, err := sub.Fetch(1)
-			if err != nil {
-				log.Println("closing sub: ", err)
-				break
-			}
-			log.Printf("Received_1: %s", msgs[0].Data)
-			_ = msgs[0].AckSync()
+			msg, _ := cons.Next()
+			log.Printf("Received_1: %s", msg.Data())
+			_ = msg.Ack()
 			received1++
 		}
+
 		fmt.Println("first finished")
 	}()
 
@@ -65,19 +61,11 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 		timer := time.NewTimer(800 * time.Millisecond)
 		for range timer.C {
 			for received1+received2 < 20 {
-				sub, err := js.PullSubscribe("TEST.message", cons.Config.Durable)
-				if err != nil {
-					log.Println("pull sub: ", err)
-					continue
-				}
-				msgs, err := sub.Fetch(1)
-				if err != nil {
-					log.Println("sub fetch: ", err)
-					continue
-				}
-				log.Printf("Received_2: %s", msgs[0].Data)
-				_ = msgs[0].AckSync()
+				msg, _ := cons.Next()
+				log.Printf("Received_1: %s", msg.Data())
+				_ = msg.Ack()
 				received2++
+
 			}
 			fmt.Println("second finished")
 			subGroup.Done()
@@ -92,7 +80,7 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 		ticker := time.NewTicker(10 * time.Millisecond)
 		for range ticker.C {
 			sent++
-			if _, err := js.Publish("TEST.message", []byte(fmt.Sprintf("Message %d\n", sent))); err != nil {
+			if _, err := js.Publish(context.Background(), "TEST.message", []byte(fmt.Sprintf("Message %d\n", sent))); err != nil {
 				t.Error(err)
 			}
 			// only send 20 messages
