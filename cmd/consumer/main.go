@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func main() {
@@ -18,44 +19,24 @@ func main() {
 		log.Fatalf("error: %v", err)
 	}
 
-	js, _ := nc.JetStream()
+	js, _ := jetstream.New(nc)
 
-	// Add stream
-	_, _ = js.AddStream(&nats.StreamConfig{
-		Name:     "TEST",
-		Subjects: []string{"TEST.*"},
-		// Discards all acknowledge messages
-		Retention: nats.InterestPolicy,
+	_, _ = js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
+		Name:      "TEST",
+		Subjects:  []string{"TEST.*"},
+		Retention: jetstream.InterestPolicy,
 	})
-	// Add consumer
-	_, err = js.AddConsumer("TEST", &nats.ConsumerConfig{
-		Durable: "CONS_TEST",
-		// Acknowledge all messages received by subscribers
-		AckPolicy: nats.AckExplicitPolicy,
+
+	consumer, _ := js.CreateOrUpdateConsumer(context.Background(), "TEST", jetstream.ConsumerConfig{
+		Durable:       "CONS_TEST",
+		FilterSubject: "TEST.message",
+		AckPolicy:     jetstream.AckAllPolicy,
 	})
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
 
-	sub, err := js.PullSubscribe("TEST.message", "CONS_TEST")
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-
-	timer := time.NewTicker(time.Second)
-	for range timer.C {
-		for {
-			messages, err := sub.Fetch(1)
-			if err != nil {
-				log.Println("sub fetch: ", err)
-				break
-			}
-			for _, msg := range messages {
-				log.Printf("Received: %s, instance: %s", msg.Data, instance)
-				_ = msg.Ack()
-			}
-		}
-	}
+	_, _ = consumer.Consume(func(msg jetstream.Msg) {
+		log.Printf("Received: %s, instance: %s", msg.Data(), instance)
+		_ = msg.Ack()
+	})
 
 	sig := make(chan os.Signal, 1)
 	log.Println("running...")
