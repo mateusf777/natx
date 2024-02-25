@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go/micro"
 
 	"github.com/nats-io/nats.go"
 
@@ -23,16 +24,25 @@ func main() {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
+	defer nc.Close()
+
+	srv, err := micro.AddService(nc, micro.Config{
+		Name:    "ServiceStore",
+		Version: "1.0.0",
+	})
 
 	store = make(map[string]string)
 
-	if _, err := nc.QueueSubscribe("service.store.add", "service", Add); err != nil {
-		log.Fatalf("error: %v", err)
+	g := srv.AddGroup("service.store", micro.WithGroupQueueGroup("store"))
+
+	if err := g.AddEndpoint("add", micro.HandlerFunc(Add)); err != nil {
+		log.Fatal(err)
+	}
+	if err := g.AddEndpoint("get", micro.HandlerFunc(Get)); err != nil {
+		log.Fatal(err)
 	}
 
-	if _, err := nc.QueueSubscribe("service.store.get", "service", Get); err != nil {
-		log.Fatalf("error: %v", err)
-	}
+	defer srv.Stop()
 
 	sig := make(chan os.Signal, 1)
 	log.Println("running...")
@@ -40,47 +50,47 @@ func main() {
 	log.Println("stop")
 }
 
-func Add(msg *nats.Msg) {
-	if msg == nil {
-		log.Println("Message is null")
+func Add(req micro.Request) {
+	if req == nil {
+		log.Println("Request is null")
 		return
 	}
 
 	log.Println("Add called... instance:", instance)
 
 	var request common.AddStoreRequest
-	if err := json.Unmarshal(msg.Data, &request); err != nil {
+	if err := json.Unmarshal(req.Data(), &request); err != nil {
 		log.Printf("Could not get request, %+v", err)
 		errMSG := fmt.Sprintf("could not get request, %+v", err)
 		resp, _ := json.Marshal(common.AddStoreResponse{
 			Err: &errMSG,
 		})
-		_ = msg.Respond(resp)
+		_ = req.Respond(resp)
 	}
 
 	log.Printf("Add payload: %+v\n", request)
 
 	store[request.Key] = request.Value
 	resp, _ := json.Marshal(common.AddStoreResponse{})
-	_ = msg.Respond(resp)
+	_ = req.Respond(resp)
 }
 
-func Get(msg *nats.Msg) {
-	if msg == nil {
-		log.Println("Message is null")
+func Get(req micro.Request) {
+	if req == nil {
+		log.Println("Request is null")
 		return
 	}
 
 	log.Println("Get called... instance:", instance)
 
 	var request common.GetStoreRequest
-	if err := json.Unmarshal(msg.Data, &request); err != nil {
+	if err := json.Unmarshal(req.Data(), &request); err != nil {
 		log.Printf("Could not get request, %+v", err)
 		errMSG := fmt.Sprintf("could not get request, %+v", err)
 		resp, _ := json.Marshal(common.GetStoreResponse{
 			Err: &errMSG,
 		})
-		_ = msg.Respond(resp)
+		_ = req.Respond(resp)
 	}
 
 	log.Printf("Get payload: %+v\n", request)
@@ -93,11 +103,11 @@ func Get(msg *nats.Msg) {
 			Err: &errMSG,
 		})
 		fmt.Printf("Get response payload: %s\n", resp)
-		_ = msg.Respond(resp)
+		_ = req.Respond(resp)
 	}
 
 	resp, _ := json.Marshal(common.GetStoreResponse{
 		Value: value,
 	})
-	_ = msg.Respond(resp)
+	_ = req.Respond(resp)
 }

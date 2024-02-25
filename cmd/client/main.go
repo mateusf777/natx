@@ -19,15 +19,15 @@ const (
 
 func main() {
 	if len(os.Args) < 2 {
-		panic("should use sub-command add or get")
+		log.Fatal("should use sub-command add or get")
 	}
 
 	if os.Args[1] == add && len(os.Args) < 4 {
-		panic("add usage: add <key> <value>")
+		log.Fatal("add usage: add <key> <value>")
 	}
 
 	if os.Args[1] == get && len(os.Args) < 3 {
-		panic("get usage: get <key>")
+		log.Fatal("get usage: get <key>")
 	}
 
 	nc, err := nats.Connect(nats.DefaultURL)
@@ -65,11 +65,13 @@ func main() {
 		log.Println("Get raw payload: ", string(msg.Data))
 		var resp common.GetStoreResponse
 		_ = json.Unmarshal(msg.Data, &resp)
-		log.Printf("Get response payload: %+v\n", resp)
-		if resp.Err != nil {
-			log.Fatalf("error: %v", resp.Err)
+		if len(resp.Value) > 0 {
+			log.Printf("%s\n", resp.Value)
 		}
-		fmt.Println(resp.Value)
+
+		if resp.Err != nil {
+			log.Fatalf("error: %v", *resp.Err)
+		}
 	}
 
 }
