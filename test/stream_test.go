@@ -32,7 +32,7 @@ func TestStreamUnsubscribeResubscribe(t *testing.T) {
 		Durable:       "CONS_TEST",
 		FilterSubject: "TEST.message",
 		// Acknowledge all messages received by subscribers
-		AckPolicy: jetstream.AckAllPolicy,
+		AckPolicy: jetstream.AckExplicitPolicy,
 	})
 	if err != nil {
 		panic(err)
