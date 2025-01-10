@@ -15,7 +15,7 @@ import (
 func TestStreamUnsubscribeResubscribe(t *testing.T) {
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		t.Fatalf("Probably nats is not running\nRun: docker run --network host -p 4222:4222 nats -js\nerror: %v", err)
+		t.Fatalf("Probably nats is not running\nRun: podman run --network host -p 4222:4222 nats -js\nerror: %v", err)
 	}
 
 	// Get jetStream

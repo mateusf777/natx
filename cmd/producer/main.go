@@ -18,6 +18,21 @@ func main() {
 
 	js, _ := jetstream.New(nc)
 
+	_, _ = js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
+		Name:      "TEST",
+		Subjects:  []string{"TEST.*"},
+		Retention: jetstream.InterestPolicy,
+	})
+
+	_, err = js.CreateOrUpdateConsumer(context.Background(), "TEST", jetstream.ConsumerConfig{
+		Durable:       "CONS_TEST",
+		FilterSubject: "TEST.message",
+		AckPolicy:     jetstream.AckExplicitPolicy,
+	})
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+
 	sent := 0
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {

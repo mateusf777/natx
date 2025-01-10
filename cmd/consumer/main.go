@@ -27,11 +27,14 @@ func main() {
 		Retention: jetstream.InterestPolicy,
 	})
 
-	consumer, _ := js.CreateOrUpdateConsumer(context.Background(), "TEST", jetstream.ConsumerConfig{
+	consumer, err := js.CreateOrUpdateConsumer(context.Background(), "TEST", jetstream.ConsumerConfig{
 		Durable:       "CONS_TEST",
 		FilterSubject: "TEST.message",
-		AckPolicy:     jetstream.AckAllPolicy,
+		AckPolicy:     jetstream.AckExplicitPolicy,
 	})
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
 
 	_, _ = consumer.Consume(func(msg jetstream.Msg) {
 		log.Printf("Received: %s, instance: %s", msg.Data(), instance)

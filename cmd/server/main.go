@@ -7,9 +7,8 @@ import (
 	"os"
 
 	"github.com/google/uuid"
-	"github.com/nats-io/nats.go/micro"
-
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/micro"
 
 	"github.com/mateusf7777/natx/common"
 )
@@ -30,6 +29,9 @@ func main() {
 		Name:    "ServiceStore",
 		Version: "1.0.0",
 	})
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
 
 	store = make(map[string]string)
 
